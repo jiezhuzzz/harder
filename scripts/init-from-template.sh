@@ -14,12 +14,11 @@ set -euo pipefail
 
 # The template's own identity. These are the strings the script replaces. They
 # are real values rather than placeholders so that the template repository is
-# itself valid — a CODEOWNERS full of {{OWNER}} would just be a syntax error on
-# GitHub.
+# itself valid — an issue-template URL full of {{OWNER}} would just be a broken
+# link.
 readonly TEMPLATE_OWNER='jiezhuzzz'
 readonly TEMPLATE_REPO='harder'
 readonly TEMPLATE_AUTHOR='Jie Zhu'
-readonly TEMPLATE_EMAIL='jiezhu@uchicago.edu'
 
 readonly README_SOURCE='scripts/template/README.md'
 
@@ -48,10 +47,9 @@ Options:
   -d, --description TEXT     One-line description, used in flake.nix and the README
   -t, --toolchains LIST      Comma- or space-separated, e.g. "rust,web". Use
                              "none" for a Nix-and-docs-only repository
-  -o, --owner OWNER          GitHub owner, for CODEOWNERS and issue links
+  -o, --owner OWNER          GitHub owner, for the issue-template links
   -r, --repo REPO            GitHub repository name, for those same links
   -a, --author NAME          Copyright holder in LICENSE
-  -e, --email EMAIL          Security contact in SECURITY.md
       --year YEAR            Copyright year in LICENSE (default: this year)
 
   -y, --yes                  Take every default without prompting
@@ -191,7 +189,6 @@ toolchains_arg=''
 owner=''
 repo=''
 author=''
-email=''
 year=''
 assume_yes=false
 keep_script=false
@@ -224,10 +221,6 @@ while [ $# -gt 0 ]; do
     ;;
   -a | --author)
     author=${2:-}
-    shift 2
-    ;;
-  -e | --email)
-    email=${2:-}
     shift 2
     ;;
   --year)
@@ -294,7 +287,6 @@ ask description 'One-line description' "${description:-A project built from the 
 ask owner 'GitHub owner' "${owner:-$default_owner}"
 ask repo 'GitHub repository' "${repo:-$default_repo}"
 ask author 'Copyright holder' "${author:-$(git config user.name || echo "$TEMPLATE_AUTHOR")}"
-ask email 'Security contact email' "${email:-$(git config user.email || echo "$TEMPLATE_EMAIL")}"
 ask year 'Copyright year' "${year:-$(date +%Y)}"
 
 if [ "$toolchains_given" = false ]; then
@@ -352,15 +344,13 @@ nix_description=${nix_description//\"/\\\"}
 nix_description=${nix_description//\$/\\\$}
 set_nix_string flake.nix description "$nix_description"
 
-for file in LICENSE README.md SECURITY.md CONTRIBUTING.md .github/CODEOWNERS .github/ISSUE_TEMPLATE/config.yml; do
+for file in LICENSE README.md CONTRIBUTING.md .github/ISSUE_TEMPLATE/config.yml; do
   [ -f "$file" ] || continue
   replace_literal "$file" "${TEMPLATE_OWNER}/${TEMPLATE_REPO}" "${owner}/${repo}"
-  replace_literal "$file" "@${TEMPLATE_OWNER}" "@${owner}"
-  replace_literal "$file" "$TEMPLATE_EMAIL" "$email"
   replace_literal "$file" "$TEMPLATE_AUTHOR" "$author"
 done
 replace_literal LICENSE 'Copyright (c) 2026' "Copyright (c) ${year}"
-note "owner ${owner}/${repo}, © ${year} ${author}, security contact ${email}"
+note "owner ${owner}/${repo}, © ${year} ${author}"
 
 log 'Writing README.md'
 cp "$README_SOURCE" README.md

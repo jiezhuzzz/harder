@@ -32,7 +32,7 @@ nix develop
 | CI         | `nix flake check` plus a dev shell build on every PR, with an opt-in Cachix binary cache                       |
 | Security   | Workflow actions pinned by commit SHA, least-privilege `permissions`, and a `zizmor` audit of the workflows    |
 | Automation | Dependabot for actions and flake inputs; Claude Code on `@claude` mentions and as a PR reviewer                |
-| Community  | Issue forms, a PR template, `CODEOWNERS`, and a security policy                                                |
+| Community  | Issue forms and a PR template                                                                                  |
 
 ## Toolchains
 

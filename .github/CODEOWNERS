@@ -1,7 +1,0 @@
-# Every path, one owner. Later lines win, so add narrower rules below to route
-# reviews per directory:
-#
-#   /nix/       @some-user
-#   /.github/   @another-user
-
-* @jiezhuzzz
