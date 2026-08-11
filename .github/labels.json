@@ -1,0 +1,51 @@
+{
+  "labels": [
+    {
+      "name": "stage: draft",
+      "color": "e0e0e0",
+      "description": "Planning skeleton that still needs concretizing into a full spec"
+    },
+    {
+      "name": "stage: spec",
+      "color": "1d76db",
+      "description": "Concretized spec. Adding this label triggers the agent spec review"
+    },
+    {
+      "name": "stage: reviewed",
+      "color": "8250df",
+      "description": "Agent reviews are in, awaiting the human verdict"
+    },
+    {
+      "name": "spike",
+      "color": "fbca04",
+      "description": "The deliverable is an answer, not merged code"
+    },
+    {
+      "name": "bug",
+      "color": "d73a4a",
+      "description": "Something behaves differently than it should"
+    }
+  ],
+  "inactive": [
+    {
+      "name": "experiment",
+      "color": "0e8a16",
+      "description": "A designed run with metrics defined before it starts"
+    },
+    {
+      "name": "infra",
+      "color": "d4c5f9",
+      "description": "Harness, tooling, or pipeline work that experiments depend on"
+    },
+    {
+      "name": "analysis",
+      "color": "f9d0c4",
+      "description": "Making sense of results and checking what the numbers support"
+    },
+    {
+      "name": "skip-review",
+      "color": "6e7781",
+      "description": "Mechanical change that the agent PR reviews should skip"
+    }
+  ]
+}

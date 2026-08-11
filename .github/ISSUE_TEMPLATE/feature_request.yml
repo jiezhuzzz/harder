@@ -1,6 +1,5 @@
 name: Feature request
 description: Propose a capability the project does not have yet
-labels: [enhancement]
 
 body:
   - type: textarea
