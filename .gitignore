@@ -1,0 +1,48 @@
+# Written by git-hooks.nix when you enter the dev shell
+/.pre-commit-config.yaml
+
+# Symlinks to the store created by `nix build`; `result-*` covers multi-output
+# derivations. No trailing slash: these are symlinks, which git tracks as files.
+/result
+/result-*
+
+# direnv's cache for `use flake`
+/.direnv/
+
+# Editors and OS
+*.swp
+.DS_Store
+
+# Blocks below belong to a single toolchain, grouped by >>> / <<< markers so
+# they can be dropped along with that toolchain's module.
+
+# >>> toolchain:rust
+# Cargo build output
+/target
+# Backups written by rustfmt
+**/*.rs.bk
+# Mutation testing data from cargo-mutants
+**/mutants.out*/
+# <<< toolchain:rust
+
+# >>> toolchain:python
+# uv's project virtualenv
+/.venv/
+# Bytecode and tool caches
+__pycache__/
+*.py[cod]
+/.mypy_cache/
+/.pytest_cache/
+/.ruff_cache/
+# Build output
+/build/
+/dist/
+*.egg-info/
+# <<< toolchain:python
+
+# >>> toolchain:web
+node_modules/
+/dist/
+*.tsbuildinfo
+.vite/
+# <<< toolchain:web

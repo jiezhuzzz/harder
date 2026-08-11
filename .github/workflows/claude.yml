@@ -1,0 +1,59 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+permissions: {}
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          # The checkout is only there for Claude to read; the action does its
+          # own writing through the GitHub API with its own token. Leaving the
+          # token in .git/config would just be one more place it can leak from.
+          # Revisit if you ever grant Claude `Bash(git push:*)`.
+          persist-credentials: false
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@5ef2e550a465a721f4f45e4a7d3c340c873e1dcc # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Lets Claude read CI results on PRs.
+          additional_permissions: |
+            actions: read
+
+          # Optional: a fixed prompt, instead of following the comment that
+          # tagged Claude.
+          # prompt: 'Update the pull request description to include a summary of changes.'
+
+          # Optional: extra CLI configuration. See
+          # https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference
+          # claude_args: '--allowed-tools Bash(gh pr *)'

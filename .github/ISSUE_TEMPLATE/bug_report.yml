@@ -1,0 +1,46 @@
+name: Bug report
+description: Something behaves differently than it should
+labels: [bug]
+
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+      placeholder: |
+        Running `nix develop` after enabling the web toolchain leaves node off PATH.
+        Expected: `node --version` prints a version.
+        Got: `node: command not found`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The shortest sequence that shows the problem.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `nix --version`, your OS and architecture, and the commit you are on.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output. Long logs are better as an attachment than inline.
+      render: text
+    validations:
+      required: false

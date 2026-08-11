@@ -1,0 +1,69 @@
+version: 2
+
+updates:
+  # Actions pinned in .github/workflows/. They are pinned by commit SHA, which
+  # Dependabot understands: it bumps the SHA and rewrites the trailing version
+  # comment together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # Everything in one PR per run, majors included.
+      actions:
+        patterns: ["*"]
+
+  # Flake inputs pinned in flake.lock
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # An update-types filter would not work here even if we wanted one:
+      # flake.lock pins inputs by git rev with no version field, so there is no
+      # SemVer for Dependabot to classify a bump against.
+      flake-inputs:
+        patterns: ["*"]
+
+# Language manifests. Uncomment the stanza matching a toolchain once the
+# repository actually has that manifest — Dependabot reports an error against
+# any ecosystem whose manifest it cannot find.
+#
+# - package-ecosystem: "cargo"        # Cargo.toml / Cargo.lock
+#   directory: "/"
+#   schedule:
+#     interval: "weekly"
+#   commit-message:
+#     prefix: "chore"
+#     include: "scope"
+#   groups:
+#     cargo:
+#       patterns: ["*"]
+#
+# - package-ecosystem: "uv"           # pyproject.toml / uv.lock
+#   directory: "/"
+#   schedule:
+#     interval: "weekly"
+#   commit-message:
+#     prefix: "chore"
+#     include: "scope"
+#   groups:
+#     python:
+#       patterns: ["*"]
+#
+# - package-ecosystem: "npm"          # package.json (npm, pnpm or yarn lock)
+#   directory: "/"
+#   schedule:
+#     interval: "weekly"
+#   commit-message:
+#     prefix: "chore"
+#     include: "scope"
+#   groups:
+#     javascript:
+#       patterns: ["*"]

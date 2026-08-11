@@ -1,0 +1,57 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Nothing here needs the token; jobs opt back in individually.
+permissions: {}
+
+# A run can realise a whole language toolchain closure, so collapse superseded
+# PR pushes rather than building them all. main is left alone: cancelling there
+# would leave merged commits unverified.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  flake:
+    name: Nix flake
+    # To check the darwin systems in project.nix as well, turn this into
+    # `runs-on: ${{ matrix.os }}` over [ubuntu-latest, macos-latest]. macOS
+    # minutes bill at a multiple of Linux ones, so it is off by default.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
+
+      - name: Use Cachix binary cache
+        # Opt-in, and skipped entirely until configured: set the CACHIX_CACHE
+        # repository variable to a cache name, and the CACHIX_AUTH_TOKEN secret
+        # to a write token if this repo should also populate it.
+        if: vars.CACHIX_CACHE != ''
+        uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+        with:
+          name: ${{ vars.CACHIX_CACHE }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          # Pushing without a token fails the run, so stay pull-only until one
+          # is configured.
+          skipPush: ${{ secrets.CACHIX_AUTH_TOKEN == '' }}
+
+      - name: Run flake checks
+        run: nix flake check --print-build-logs
+
+      - name: Build dev shell
+        # `nix flake check` never realises the dev shell, which is the closure
+        # contributors actually download. Building it here is what makes the
+        # cache above worth having.
+        run: nix develop --command true

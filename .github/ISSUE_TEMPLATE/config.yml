@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Question or idea
+    url: https://github.com/jiezhuzzz/harder/discussions
+    about: Open-ended questions and proposals belong in Discussions, not the issue tracker.
+  - name: Security vulnerability
+    url: https://github.com/jiezhuzzz/harder/security/advisories/new
+    about: Report privately through a security advisory. Please do not open a public issue.
