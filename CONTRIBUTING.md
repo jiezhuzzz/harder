@@ -48,7 +48,7 @@ A pre-push hook rejects anything else, and rejects pushing to `main` directly. B
 
 Open a PR against `main`. The PR title becomes the squash-merge commit, so it has to be a valid Conventional Commit subject too.
 
-CI runs `nix flake check` on every PR. If Claude Code is configured for the repository it also posts a review; you can invoke it yourself by mentioning `@claude` in a comment.
+CI runs `nix flake check` on every PR. Claude Code and Codex each post a review when their API key is configured, and you can invoke either one yourself by mentioning `@claude` or `@codex` in a comment. Both run read-only and reply in a comment; neither can push to your branch.
 
 ## Working on the flake
 

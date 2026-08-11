@@ -31,7 +31,7 @@ nix develop
 | Hooks      | Conventional Commit subjects at commit time; `<type>/<kebab-case>` branch names and no direct pushes to `main` |
 | CI         | `nix flake check` plus a dev shell build on every PR, with an opt-in Cachix binary cache                       |
 | Security   | Workflow actions pinned by commit SHA, least-privilege `permissions`, and a `zizmor` audit of the workflows    |
-| Automation | Dependabot for actions and flake inputs; Claude Code on `@claude` mentions and as a PR reviewer                |
+| Automation | Dependabot for actions and flake inputs; Claude Code and Codex, each on mentions and as a PR reviewer          |
 | Community  | Issue forms and a PR template                                                                                  |
 
 ## Toolchains
@@ -54,8 +54,13 @@ None of these are required for CI to pass — the steps that need them skip them
 
 - **Cachix** — set the `CACHIX_CACHE` *variable* to your cache name to pull from it, and the `CACHIX_AUTH_TOKEN` *secret* to a write token to also push to it. With only the variable set, CI pulls and does not push.
 - **Claude Code** — set the `ANTHROPIC_API_KEY` secret to enable `@claude` mentions and automatic PR review. Delete `.github/workflows/claude*.yml` if you do not want either.
+- **Codex** — set the `OPENAI_API_KEY` secret to enable `@codex` mentions and automatic PR review. Delete `.github/workflows/codex*.yml` if you do not want either.
 - **Branch protection** — the branch hooks are local and only bind people who use the dev shell. Protect `main` on GitHub to make it stick: require the `Nix flake` check, require a PR, and enable squash-only merges so Conventional Commit PR titles become the history.
 - **Discussions** — `.github/ISSUE_TEMPLATE/config.yml` links to the Discussions tab. Enable it, or drop that link.
+
+Both agents are wired up and both review every pull request, so a repository with both keys set pays two bills per PR. Delete the review workflow of whichever one you do not want as a standing reviewer; the mention workflows only cost anything when you invoke them.
+
+Each agent runs read-only and replies in a comment. Codex enforces this in two places: `permission-profile: ':read-only'` sandboxes the model, and the workflow is split so the job holding the API key has a token that cannot write, while the job that posts the comment never runs the model. Codex also refuses to run for anyone without write access on the repository, which is what keeps a drive-by comment from spending your quota.
 
 ## Layout
 
@@ -68,7 +73,7 @@ nix/
   hooks.nix            git hooks
   toolchains/          one module per language
 .github/
-  workflows/           flake checks, Claude Code, Claude PR review
+  workflows/           flake checks, and Claude Code and Codex on mentions and PR review
   ISSUE_TEMPLATE/      issue forms
 scripts/
   init-from-template.sh   bootstrap, then delete itself
