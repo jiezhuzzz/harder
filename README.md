@@ -6,20 +6,18 @@ There is no source tree here on purpose. This is the scaffolding a project sits 
 
 ## Using it
 
-Create a repository from the template, then bootstrap it:
-
 ```sh
-gh repo create my-project --template jiezhuzzz/harder --private --clone
+nix run github:jiezhuzzz/harder -- my-project
 cd my-project
-./scripts/init-from-template.sh
+nix develop
 ```
 
-The script asks which toolchains you want, rewrites `project.nix`, strips the modules and flake inputs you did not pick out of the tree, replaces this README with one for your project, re-locks the flake, and removes itself. Pass `--help` for the non-interactive flags.
+The run asks which toolchains you want, copies the template into `my-project` with the modules and flake inputs you did not pick stripped out, writes a README for your project, re-locks the flake, and leaves a git repository with one bootstrap commit. Pass `--help` after the `--` for the non-interactive flags.
 
-Then:
+Then put it on GitHub:
 
 ```sh
-nix develop
+gh repo create my-project --source=. --private --push
 ```
 
 ## What you get
@@ -82,12 +80,14 @@ nix/
   dev-shell.nix        the dev shell and the options toolchains extend it through
   formatter.nix        nix fmt — formatters that apply to any repository
   hooks.nix            git hooks
+  app.nix              the scaffold app behind `nix run`
+  scaffold.sh          the scaffold script; both are stripped from the projects it creates
   toolchains/          one module per language
 .github/
   workflows/           flake checks, and Claude Code and Codex on mentions and PR review
   ISSUE_TEMPLATE/      issue forms
-scripts/
-  init-from-template.sh   bootstrap, then delete itself
+template/
+  README.md            becomes the new project's README
 ```
 
 ## License

@@ -40,6 +40,10 @@
           ./nix/dev-shell.nix
           ./nix/formatter.nix
           ./nix/hooks.nix
+
+          # >>> scaffold
+          ./nix/app.nix
+          # <<< scaffold
         ]
         ++ map (name: ./nix/toolchains + "/${name}.nix") project.toolchains;
 

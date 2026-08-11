@@ -54,14 +54,15 @@ CI runs `nix flake check` on every PR. Claude Code and Codex each post a review 
 
 The flake is split so that each file has one job:
 
-| File                   | What lives there                                                         |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `project.nix`          | The knobs: which systems to evaluate, which toolchains to compose        |
-| `flake.nix`            | Inputs, and the module list assembled from `project.nix`                 |
-| `nix/dev-shell.nix`    | The dev shell, and the `devPackages` / `devShellHooks` options it merges |
-| `nix/formatter.nix`    | `nix fmt` — formatters that apply to any repository                      |
-| `nix/hooks.nix`        | Git hooks                                                                |
-| `nix/toolchains/*.nix` | One file per language, contributing packages, formatters and hooks       |
+| File                   | What lives there                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `project.nix`          | The knobs: which systems to evaluate, which toolchains to compose                                      |
+| `flake.nix`            | Inputs, and the module list assembled from `project.nix`                                               |
+| `nix/dev-shell.nix`    | The dev shell, and the `devPackages` / `devShellHooks` options it merges                               |
+| `nix/formatter.nix`    | `nix fmt` — formatters that apply to any repository                                                    |
+| `nix/hooks.nix`        | Git hooks                                                                                              |
+| `nix/toolchains/*.nix` | One file per language, contributing packages, formatters and hooks                                     |
+| `nix/app.nix`          | The `nix run` scaffold app, wrapping `nix/scaffold.sh`; both are stripped from the projects it creates |
 
 ### Adding a toolchain
 
