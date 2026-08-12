@@ -7,18 +7,23 @@ There is no source tree here on purpose. This is the scaffolding a project sits 
 ## Using it
 
 ```sh
-nix run github:jiezhuzzz/harder -- my-project
+nix run github:jiezhuzzz/harder -- my-project --toolchain python,rust
 cd my-project
 nix develop
 ```
 
-The run asks which toolchains you want, copies the template into `my-project` with the modules and flake inputs you did not pick stripped out, writes a README for your project, re-locks the flake, and leaves a git repository with one bootstrap commit. Pass `--help` after the `--` for the non-interactive flags.
+Locally, the run copies the template into `my-project` with the modules and flake inputs of the toolchains you did not pick stripped out, writes a README for your project, re-locks the flake, and makes one bootstrap commit. On GitHub, it creates the repository and pushes `main`, creates the issue labels from `.github/labels.json`, and applies the branch ruleset from `.github/rulesets/main.json` — the two things that cannot live in the tree.
 
-Then put it on GitHub:
+Anything you do not pass is prompted for, and `--help` after the `--` lists every flag. The ones that matter most:
 
-```sh
-gh repo create my-project --source=. --private --push
-```
+| Flag                  | Effect                                                                |
+| --------------------- | --------------------------------------------------------------------- |
+| `--toolchain a,b`     | Which toolchains to keep; `none` for a Nix-and-docs-only repository   |
+| `--visibility public` | Create a public repository instead of a private one                   |
+| `--no-github`         | Stop after the bootstrap commit and print the GitHub commands instead |
+| `-y`                  | Take every default without prompting                                  |
+
+The GitHub half needs `gh` authenticated (`gh auth login`) and, unless you pass `--owner`, creates the repository under the account it is logged in as. Without that it warns, prints the commands to run yourself, and leaves you with the committed project.
 
 ## What you get
 
@@ -31,6 +36,7 @@ gh repo create my-project --source=. --private --push
 | Security   | Workflow actions pinned by commit SHA, least-privilege `permissions`, and a `zizmor` audit of the workflows    |
 | Automation | Dependabot for actions and flake inputs; Claude Code and Codex, each on mentions and as a PR reviewer          |
 | Community  | Issue forms and a PR template                                                                                  |
+| Scaffold   | `nix run` creates the project, the GitHub repository, the issue labels, and the branch ruleset in one go       |
 
 ## Toolchains
 
@@ -48,12 +54,13 @@ The template ships with all three enabled so its own CI exercises every module. 
 
 ## Repository settings
 
-None of these are required for CI to pass — the steps that need them skip themselves when unconfigured.
+The scaffold run applies the first two itself; they are here because a repository created some other way still needs them, and because a rejected ruleset is worth understanding. The rest are secrets and toggles nobody can set for you. None are required for CI to pass — the steps that need them skip themselves when unconfigured.
 
+- **Labels** — `.github/labels.json` is the issue taxonomy: the `labels` list is what the scaffolder creates, and `inactive` holds the ones worth having only once a project needs them. `gh label create <name> --color <c> --description <d> --force` adds one; `--force` is what lets it overwrite GitHub's stock `bug`.
+- **Branch protection** — the branch hooks are local and only bind people who use the dev shell. Protecting `main` on GitHub is what makes it stick: `.github/rulesets/main.json` encodes the rules (require the `Nix flake` check, require a PR, squash-only merges so Conventional Commit PR titles become the history, no force pushes or deletion). Apply it with `gh api --method POST "repos/{owner}/{repo}/rulesets" --input .github/rulesets/main.json`, or import the file under Settings → Rules → Rulesets. It ships with a repository-admin bypass so direct pushes stay possible for you; delete the `bypass_actors` entry to bind everyone. If the API rejects it, the scaffolder prints GitHub's own error and the command to retry with, and moves on — whether rulesets apply to a private repository depends on the account's plan.
 - **Cachix** — set the `CACHIX_CACHE` *variable* to your cache name to pull from it, and the `CACHIX_AUTH_TOKEN` *secret* to a write token to also push to it. With only the variable set, CI pulls and does not push.
 - **Claude Code** — set the `ANTHROPIC_API_KEY` secret to enable `@claude` mentions and automatic PR review. Delete `.github/workflows/claude*.yml` if you do not want either.
 - **Codex** — set the `OPENAI_API_KEY` secret to enable `@codex` mentions and automatic PR review. Delete `.github/workflows/codex*.yml` if you do not want either.
-- **Branch protection** — the branch hooks are local and only bind people who use the dev shell. Protect `main` on GitHub to make it stick: `.github/rulesets/main.json` encodes the intended rules (require the `Nix flake` check, require a PR, squash-only merges so Conventional Commit PR titles become the history, no force pushes or deletion). Apply it with `gh api "repos/{owner}/{repo}/rulesets" --input .github/rulesets/main.json`, or import the file under Settings → Rules → Rulesets. It ships with a repository-admin bypass so direct pushes stay possible for you; delete the `bypass_actors` entry to bind everyone.
 - **Discussions** — `.github/ISSUE_TEMPLATE/config.yml` links to the Discussions tab. Enable it, or drop that link.
 
 Both agents are wired up and both review every pull request, so a repository with both keys set pays two bills per PR. Delete the review workflow of whichever one you do not want as a standing reviewer; the mention workflows only cost anything when you invoke them.

@@ -8,6 +8,11 @@
 # run copies that tree into <directory>, keeps the toolchains the project
 # wants and strips the rest, rewrites the project metadata, and leaves a
 # committed git repository behind.
+#
+# It then creates the GitHub repository and applies the two things that only
+# exist server-side: the issue labels from .github/labels.json and the branch
+# ruleset from .github/rulesets/main.json. That half needs an authenticated
+# `gh` and is skipped, with the commands to run yourself, when it is missing.
 
 set -euo pipefail
 
@@ -33,15 +38,17 @@ readonly TEMPLATE_AUTHOR='Jie Zhu'
 # @arg target! The directory to create
 # @option -n --name Project name, used in the README title (default: the directory's basename)
 # @option -d --description One-line description, used in flake.nix and the README
-# @option -t --toolchains Comma- or space-separated, e.g. "rust,web"; "none" for a Nix-and-docs-only repository
-# @option -o --owner GitHub owner, for the issue-template links
+# @option -t --toolchain Comma- or space-separated, e.g. "python,rust"; "none" for a Nix-and-docs-only repository
+# @option -o --owner GitHub owner (default: the account `gh` is logged in as)
 # @option -r --repo GitHub repository name (default: the directory's basename)
+# @option -v --visibility[=private|public|internal] Visibility of the repository it creates
 # @option -a --author Copyright holder in LICENSE
 # @option --year Copyright year in LICENSE (default: this year)
 # @flag -y --yes Take every default without prompting
 # @flag --no-lock Skip `nix flake lock`
 # @flag --no-format Skip `nix fmt`
 # @flag --no-git Skip `git init` and the bootstrap commit
+# @flag --no-github Skip the GitHub repository, its labels and its branch ruleset
 eval "$(argc --argc-eval "$0" "$@")"
 
 if [ -t 1 ]; then
@@ -177,6 +184,39 @@ ask() {
   printf -v "$var" '%s' "${reply:-$default}"
 }
 
+# Prints the account `gh` is logged in as, which doubles as the check that the
+# GitHub half can run at all. The lookup hits the network, so it runs under a
+# timeout: an offline `gh` should cost a few seconds and fall back to a
+# local-only scaffold, not hang the run. The warnings go to stderr, so they
+# still reach the terminal through the command substitution this is called in.
+gh_login() {
+  local login=''
+  if ! command -v gh >/dev/null 2>&1; then
+    warn 'gh is not on PATH; skipping the GitHub setup'
+    return 1
+  fi
+  if ! login=$(timeout 10 gh api user --jq .login 2>/dev/null) || [ -z "$login" ]; then
+    warn 'gh is not authenticated, or GitHub is unreachable (try: gh auth login); skipping the GitHub setup'
+    return 1
+  fi
+  printf '%s' "$login"
+}
+
+# Creates the active labels from .github/labels.json. --force updates a label
+# that already exists, which is what GitHub's own defaults need: a new
+# repository ships with a `bug` that says something else.
+create_labels() {
+  local slug=$1 name color description
+  jq -r '.labels[] | [.name, .color, .description // ""] | @tsv' .github/labels.json |
+    while IFS=$'\t' read -r name color description; do
+      if gh label create "$name" --repo "$slug" --color "$color" --description "$description" --force >/dev/null 2>&1; then
+        note "label ${name}"
+      else
+        warn "could not create the label '${name}'"
+      fi
+    done
+}
+
 # ---------------------------------------------------------------------------
 
 target=${argc_target:-}
@@ -191,13 +231,39 @@ base=$(basename "$target")
 
 # ask() assigns through printf -v, which shellcheck cannot see; initialise the
 # variables it fills so nounset and SC2154 stay honest.
-name='' description='' owner='' repo='' author='' year=''
+name='' description='' owner='' repo='' author='' year='' visibility=''
+
+# Whether the GitHub half runs at all, settled before anything else: a run
+# that cannot do it should say so before it asks about visibility, and long
+# before it starts copying files. Without a git repository there is nothing to
+# push, so --no-git implies --no-github.
+github=1
+if [ -n "${argc_no_github:-}" ] || [ -n "${argc_no_git:-}" ]; then
+  github=''
+fi
+
+login='' default_owner=$TEMPLATE_OWNER
+if [ -n "$github" ]; then
+  if login=$(gh_login); then
+    default_owner=$login
+  else
+    github=''
+  fi
+fi
 
 log "Scaffolding ${target} from ${TEMPLATE_OWNER}/${TEMPLATE_REPO}"
 ask name 'Project name' "${argc_name:-$base}"
 ask description 'One-line description' "${argc_description:-A project built from the harder template}"
-ask owner 'GitHub owner' "${argc_owner:-$TEMPLATE_OWNER}"
+ask owner 'GitHub owner' "${argc_owner:-$default_owner}"
 ask repo 'GitHub repository' "${argc_repo:-$base}"
+if [ -n "$github" ]; then
+  ask visibility 'Repository visibility — private, public, internal, or no to skip GitHub' "${argc_visibility:-private}"
+  case $visibility in
+  private | public | internal) ;;
+  n | no | none) github='' ;;
+  *) die "unknown visibility '${visibility}' (private, public, internal, or no)" ;;
+  esac
+fi
 ask author 'Copyright holder' "${argc_author:-$(git config user.name 2>/dev/null || echo "$TEMPLATE_AUTHOR")}"
 ask year 'Copyright year' "${argc_year:-$(date +%Y)}"
 
@@ -208,8 +274,8 @@ for module in "$TEMPLATE_SOURCE"/nix/toolchains/*.nix; do
 done
 [ ${#available[@]} -gt 0 ] || die 'no toolchain modules found under nix/toolchains/'
 
-toolchains_arg=${argc_toolchains:-}
-if [ "${argc_toolchains+given}" != given ]; then
+toolchains_arg=${argc_toolchain:-}
+if [ "${argc_toolchain+given}" != given ]; then
   note "available: ${available[*]}  (comma-separated, or 'none')"
   ask toolchains_arg 'Toolchains' 'none'
 fi
@@ -235,9 +301,11 @@ cd "$target"
 
 # The scaffolder does not follow the project it creates: the new README comes
 # from the template file, and the app, this script, and their import in
-# flake.nix all go.
+# flake.nix all go. The .git only exists when TEMPLATE_SOURCE is a checkout
+# rather than a store path — dropping it keeps a development run from
+# inheriting the template's history and, worse, its origin remote.
 cp template/README.md README.md
-rm -rf template nix/app.nix nix/scaffold.sh
+rm -rf template nix/app.nix nix/scaffold.sh .git
 strip_marker_blocks scaffold
 
 log 'Selecting toolchains'
@@ -297,20 +365,44 @@ if [ -z "${argc_no_git:-}" ]; then
     note 'committed: chore: bootstrap from template'
   else
     warn 'the bootstrap commit failed — set git user.name and user.email, then commit yourself'
+    github=''
   fi
 fi
 
+slug="${owner}/${repo}" err=''
+if [ -n "$github" ]; then
+  log "Creating github.com/${slug}"
+  if gh repo create "$slug" --source=. --"$visibility" --push --description "$description"; then
+    note "${visibility}, origin set, main pushed"
+
+    log 'Creating the issue labels'
+    create_labels "$slug"
+    note 'the labels under "inactive" in .github/labels.json are not created'
+
+    log 'Applying the branch ruleset'
+    if err=$(gh api --method POST "repos/${slug}/rulesets" --input .github/rulesets/main.json --silent 2>&1); then
+      note 'main now requires a pull request, a green "Nix flake" check, and squash merges'
+    else
+      warn "the ruleset was rejected: ${err}"
+      note "retry with: gh api --method POST repos/${slug}/rulesets --input .github/rulesets/main.json"
+    fi
+  else
+    warn 'gh repo create failed — the project is committed locally; push it yourself'
+    github=''
+  fi
+fi
+
+printf '\n%sDone.%s Next:\n\n' "$BOLD" "$RESET"
+printf '  1. Enter it            — %scd %s && nix develop%s\n' "$BOLD" "$target" "$RESET"
+if [ -z "$github" ]; then
+  printf '  2. Put it on GitHub    — %sgh repo create %s --source=. --private --push%s\n' "$BOLD" "$slug" "$RESET"
+  printf '  3. Create the labels   — %sgh label create ... --force%s, from .github/labels.json\n' "$BOLD" "$RESET"
+  printf '  4. Protect main        — %sgh api --method POST repos/%s/rulesets --input .github/rulesets/main.json%s\n' "$BOLD" "$slug" "$RESET"
+fi
 cat <<EOF
-
-${BOLD}Done.${RESET} Next:
-
-  1. Enter it            — ${BOLD}cd ${target} && nix develop${RESET}
-  2. Put it on GitHub    — ${BOLD}gh repo create ${owner}/${repo} --source=. --private --push${RESET}
-  3. Create the labels   — ${BOLD}see .github/labels.json${RESET}
 
 Optional repository settings are listed under "Repository settings" in the
 template's README (github.com/${TEMPLATE_OWNER}/${TEMPLATE_REPO}). The short
-version: set the ANTHROPIC_API_KEY secret for the Claude workflows, the
-CACHIX_CACHE variable for the binary cache, and protect main so the branch
-rules bind everyone.
+version: set the ANTHROPIC_API_KEY and OPENAI_API_KEY secrets for the agent
+workflows, and the CACHIX_CACHE variable for the binary cache.
 EOF
